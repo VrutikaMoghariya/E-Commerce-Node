@@ -21,16 +21,20 @@ const userSchema = new Schema({
     },
     gender: {
         type: String,
-        enum:[ "Male", "Female"],
+        enum: ["Male", "Female"],
     },
     profile: {
         type: String,
         required: true
+    },
+    password: {
+        type: String,
+        required: true
     }
+}, {
+    timestamps: true
 })
 
 const USER = mongoose.model('user', userSchema);
 
 module.exports = USER;
-
-// aggregate, $lookup
