@@ -10,7 +10,7 @@ exports.allProducts = async (req, res, next) => {
 
         try {
             const _id = req.query._id;
-            const product = await PRODUCT.findById(_id);
+            const product = await PRODUCT.findById(_id).populate('category');
             res.status(200).json({
                 status: "Success",
                 message: 'Product get successfully',
@@ -47,7 +47,7 @@ exports.allProducts = async (req, res, next) => {
     else {
 
         try {
-            const products = await PRODUCT.find();
+            const products = await PRODUCT.find().populate('category');
             res.status(200).json({
                 status: "Success",
                 message: 'Products get successfully',
@@ -80,22 +80,35 @@ exports.searchProduct = async (req, res, next) => {
             });
         }
 
-        const products = await PRODUCT.find({
-            $or: [
-                { title: search, $options: 'i' },
-                { description: search, $options: 'i' },
-                { rating: search, $options: 'i' },
-                { brand: search, $options: 'i' },
-                { category: search, $options: 'i' }
-            ]
-        })
+        const regex = new RegExp(search, 'i'); // Case-insensitive regex
+
+        const products = await PRODUCT.aggregate([
+            {
+                $match: {
+                    $or: [
+                        { title: { $regex: regex } },
+                        { description: { $regex: regex } },
+                        { brand: { $regex: regex } },
+                        { category: { $regex: regex } },
+                    ]
+                }
+            },
+            {
+                $lookup: {
+                    from: "categories",
+                    localField: "category",
+                    foreignField: "_id",
+                    as: "category",
+                },
+            }
+        ]);
 
         res.status(200).json({
             status: "Success",
             message: 'Products get successfully',
             products: products,
             total: products.length,
-        })
+        });
     } catch (error) {
         res.status(400).json({
             status: "Fail",
