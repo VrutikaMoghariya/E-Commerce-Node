@@ -25,11 +25,15 @@ exports.allProducts = async (req, res, next) => {
                 data: error
             });
         }
+
     } else if (req.query.skip && req.query.limit) {
+
         try {
             const skip = req.query.skip;
             const limit = req.query.limit;
-            const products = await PRODUCT.find().skip(skip).limit(limit);
+
+            const products = await PRODUCT.find().skip(skip).limit(limit).populate('category');
+
             res.status(200).json({
                 status: "Success",
                 message: 'Products get successfully',
@@ -37,6 +41,43 @@ exports.allProducts = async (req, res, next) => {
                 total: products.length,
             })
         } catch (error) {
+            res.status(400).json({
+                status: "Fail",
+                msg: "Product not found",
+                data: error
+            });
+        }
+    }
+    else if (req.query.category) {
+
+        try {
+
+            const category = req.query.category;
+            const products = await PRODUCT.aggregate([
+                {
+                    $lookup: {
+                        from: "categories",
+                        localField: "category",
+                        foreignField: "_id",
+                        as: "category",
+                    },
+                },
+                {
+                    $match: {
+                        'category.title': { $regex: new RegExp(category, 'i') }
+                    }
+                }
+            ]);
+
+            res.status(200).json({
+                status: "Success",
+                message: 'Products by category get successfully',
+                products: products,
+                total: products.length,
+                category: category,
+            })
+        } catch (error) {
+
             res.status(400).json({
                 status: "Fail",
                 msg: "Product not found",
@@ -80,19 +121,9 @@ exports.searchProduct = async (req, res, next) => {
             });
         }
 
-        const regex = new RegExp(search, 'i'); // Case-insensitive regex
+        const regex = new RegExp(search, 'i');
 
         const products = await PRODUCT.aggregate([
-            {
-                $match: {
-                    $or: [
-                        { title: { $regex: regex } },
-                        { description: { $regex: regex } },
-                        { brand: { $regex: regex } },
-                        { category: { $regex: regex } },
-                    ]
-                }
-            },
             {
                 $lookup: {
                     from: "categories",
@@ -100,7 +131,17 @@ exports.searchProduct = async (req, res, next) => {
                     foreignField: "_id",
                     as: "category",
                 },
-            }
+            },
+            {
+                $match: {
+                    $or: [
+                        { title: { $regex: regex } },
+                        { description: { $regex: regex } },
+                        { brand: { $regex: regex } },
+                        { 'category.title': { $regex: regex } },
+                    ]
+                }
+            },
         ]);
 
         res.status(200).json({
@@ -109,6 +150,7 @@ exports.searchProduct = async (req, res, next) => {
             products: products,
             total: products.length,
         });
+
     } catch (error) {
         res.status(400).json({
             status: "Fail",
@@ -119,65 +161,24 @@ exports.searchProduct = async (req, res, next) => {
 }
 
 
-// Get all products categories
-
-exports.allCategories = async (req, res, next) => {
-
-    if (req.query.category) {
-
-        try {
-
-            const category = req.query.category;
-            const products = await PRODUCT.find({ category: category });
-            res.status(200).json({
-
-                status: "Success",
-                message: 'Products get successfully',
-                products: products,
-                total: products.length,
-                category: category,
-            })
-        } catch (error) {
-
-            res.status(400).json({
-                status: "Fail",
-                msg: "Product not found",
-                data: error
-            });
-        }
-
-    } else {
-
-        try {
-            const categories = await PRODUCT.find({}, { category: 1, _id: 0 });
-            res.status(200).json({
-                status: "Success",
-                message: 'Categories get successfully',
-                categories: categories,
-                total: categories.length,
-            })
-        } catch (error) {
-            res.status(400).json({
-                status: "Fail",
-                msg: "Category not found",
-                data: error
-            });
-        }
-    }
-}
-
-
 // Add a new product
 
 exports.addProduct = async (req, res, next) => {
 
     try {
+
+        req.body.thumbnail = req.files.thumbnail[0].filename;
+        req.body.images = req.files.images.map((item) => {
+            return item.filename;
+        });
+
         const product = await PRODUCT.create(req.body);
         res.status(200).json({
             status: "Success",
             message: 'Product added successfully',
             product: product,
-        })
+        });
+
     } catch (error) {
         res.status(400).json({
             status: "Fail",
@@ -192,12 +193,24 @@ exports.addProduct = async (req, res, next) => {
 exports.updateProduct = async (req, res, next) => {
 
     try {
-        const product = await PRODUCT.findByIdAndUpdate(req.query._id, req.body);
+
+        if (req.files.thumbnail) {
+            req.body.thumbnail = req.files.thumbnail[0].filename;
+        }
+        if (req.files.images) {
+
+            req.body.images = req.files.images.map((item) => {
+                return item.filename;
+            });
+        }
+
+        await PRODUCT.findByIdAndUpdate(req.query._id, req.body);
+
         res.status(200).json({
             status: "Success",
             message: 'Product updated successfully',
-            product: product,
-        })
+        });
+
     } catch (error) {
         res.status(400).json({
             status: "Fail",
@@ -217,7 +230,7 @@ exports.deleteProduct = async (req, res, next) => {
             status: "Success",
             message: 'Product deleted successfully',
             product: product,
-        })
+        });
     } catch (error) {
         res.status(400).json({
             status: "Fail",

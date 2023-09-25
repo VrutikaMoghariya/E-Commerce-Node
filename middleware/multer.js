@@ -7,10 +7,11 @@ const storage = multer.diskStorage({
     destination: function (req, file, cb) {
 
         if (file.fieldname == "profile") {
-            console.log(file.fieldname);
             cb(null, './public/images/user-profile');
-        } else {
-            cb(null, './public/images/product');
+        } else if (file.fieldname == "thumbnail") {
+            cb(null, './public/images/thumbnail');
+        } else if (file.fieldname == "images") {
+            cb(null, './public/images/products');
         }
     },
 

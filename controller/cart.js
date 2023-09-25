@@ -68,8 +68,9 @@ exports.getAllCarts = async (req, res, next) => {
 
 exports.createCart = async (req, res, next) => {
 
+
     try {
-        const cart = await CART.create(req.body);
+        // const cart = await CART.create(req.body);
         res.status(200).json({
             status: "Success",
             message: 'cart created successfully',

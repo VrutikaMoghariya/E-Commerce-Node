@@ -22,7 +22,7 @@ const cartSchema =  new Schema({
     },
     totalProducts: {
         type: Number,
-        default: 0
+        default: 0,
     },
     totalQuantity: {
         type: Number,

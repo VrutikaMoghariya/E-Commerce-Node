@@ -11,5 +11,4 @@ router.post('/login', userController.loginUser);
 
 router.post('/add' , multer.single('profile') , userController.addUser);
 
-
 module.exports = router;
