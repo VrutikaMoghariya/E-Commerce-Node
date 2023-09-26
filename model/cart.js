@@ -5,12 +5,12 @@ const Schema = mongoose.Schema;
 const cartSchema =  new Schema({
     
     user: {
-        type: Schema.Types.ObjectId,
+        type: mongoose.Schema.Types.ObjectId,
         ref: 'user'
     },
     products: [{
-        type: Schema.Types.ObjectId,
-        ref: 'product'
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'product',
     }],
     total: {
         type: Number,

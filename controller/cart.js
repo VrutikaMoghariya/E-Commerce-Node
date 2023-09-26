@@ -22,30 +22,13 @@ exports.getAllCarts = async (req, res, next) => {
             });
         }
 
-    } else if (req.query.userId) {       // get  carts of user
-        try {
-            const userId = req.query.userId;
-            const carts = await CART.find({ userId: userId }).populate('user').populate('products');
-            res.status(200).json({
-                status: "Success",
-                message: 'carts get successfully',
-                carts: carts,
-                total: carts.length,
-            });
+    } else {
 
-        } catch (error) {
-            res.status(500).json({
-                status: "Fail",
-                msg: "carts not found",
-                data: error
-            });
-
-        }
-    }
-    else {      // get all carts
+        // get all carts
         try {
             const carts = await CART.find().populate('products').populate('user');
             res.status(200).json({
+
                 status: "Success",
                 message: 'carts get successfully',
                 carts: carts,
@@ -64,13 +47,59 @@ exports.getAllCarts = async (req, res, next) => {
 }
 
 
+exports.getUserCarts = async (req, res, next) => {
+    try {
+
+        const userId = req.userId;
+
+        console.log(userId);
+
+        const carts = await CART.aggregate([
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "user",
+                    foreignField: "_id",
+                    as: "user"
+                }
+            },
+            {
+                $match: {
+                    'user._id': userId
+                }
+            }
+        ]);
+
+        console.log(carts);
+
+        const cart = await CART.find({ userId: userId }).populate('user').populate('products');
+        res.status(200).json({
+            status: "Success",
+            message: 'carts get successfully',
+            carts: carts,
+            total: carts.length,
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            status: "Fail",
+            msg: "carts not found",
+            data: error
+        });
+
+    }
+}
+
+
 //create a cart
 
 exports.createCart = async (req, res, next) => {
 
-
     try {
-        // const cart = await CART.create(req.body);
+
+        req.body.user = req.userId;
+
+        const cart = await CART.create(req.body);
         res.status(200).json({
             status: "Success",
             message: 'cart created successfully',

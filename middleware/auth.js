@@ -1,12 +1,23 @@
 const jwt = require('jsonwebtoken');
 
-module.exports = async (req,res,next) => {
+module.exports = async (req, res, next) => {
     try {
-          //   get the token from the authorization header
 
-          console.log(req.headers.token);
-        //   const token = await 
+        //   get the token from the authorization header
+        const token = await req.headers.authorization;
+
+        //check if the token matches the supposed origin
+        const decodedToken = await jwt.verify(token, "RANDOM-TOKEN");
+
+        // pass the user down to the endpoints here
+        req.userId = decodedToken.userId;
+
+        // pass down functionality to the endpoint
+        next();
+
     } catch (error) {
-        
+        res.status(401).json({
+            error: new Error("Invalid request!"),
+        });
     }
 };
