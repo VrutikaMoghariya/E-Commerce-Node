@@ -5,6 +5,7 @@ exports.getAllCarts = async (req, res, next) => {
     if (req.query._id) {    // get single cart
 
         try {
+
             const _id = req.query._id;
             const cart = await CART.findById(_id).populate('user').populate('products');
             res.status(200).json({
@@ -26,7 +27,8 @@ exports.getAllCarts = async (req, res, next) => {
 
         // get all carts
         try {
-            const carts = await CART.find().populate('products').populate('user');
+
+            const carts = await CART.find().populate('product').populate('user');
             res.status(200).json({
 
                 status: "Success",
@@ -39,7 +41,7 @@ exports.getAllCarts = async (req, res, next) => {
 
             res.status(500).json({
                 status: "Fail",
-                msg: "Product not found",
+                msg: "carts not found",
                 data: error
             });
         }
@@ -49,12 +51,14 @@ exports.getAllCarts = async (req, res, next) => {
 
 exports.getUserCarts = async (req, res, next) => {
     try {
-
         const userId = req.userId;
 
-        console.log(userId);
-
         const carts = await CART.aggregate([
+            {
+                $match: {
+                    user: mongoose.Types.ObjectId(userId)
+                }
+            },
             {
                 $lookup: {
                     from: "users",
@@ -64,32 +68,68 @@ exports.getUserCarts = async (req, res, next) => {
                 }
             },
             {
-                $match: {
-                    'user._id': userId
+                $unwind: "$products"
+            },
+            {
+                $lookup: {
+                    from: "products",
+                    localField: "products.product",
+                    foreignField: "_id",
+                    as: "products.product"
+                }
+            },
+            {
+                $addFields: {
+                    "products.qty": "$products.qty"
+                }
+            },
+            {
+                $group: {
+                    _id: "$_id",
+                    user: { $first: "$user" },
+                    products: { $push: "$products" },
+                    total: { $first: "$total" },
+                    discountedTotal: { $first: "$discountedTotal" },
+                    totalProducts: { $first: "$totalProducts" },
+                    totalQuantity: { $first: "$totalQuantity" },
                 }
             }
         ]);
 
-        console.log(carts);
+        const response = {
+            carts: carts.map((cart) => ({
+                id: cart._id,
+                products: cart.products.map((product) => ({
+                    id: product.product[0]._id,
+                    title: product.product[0].title,
+                    price: product.product[0].price,
+                    quantity: product.qty,
+                    total: product.product[0].price * product.qty,
+                    discountPercentage: product.product[0].discountPercentage,
+                    discountedPrice: product.product[0].discountedPrice
+                })),
+                total: cart.total,
+                discountedTotal: cart.discountedTotal,
+                userId: cart.user[0]._id, // Assuming there's only one user per cart
+                totalProducts: cart.totalProducts,
+                totalQuantity: cart.totalQuantity
+            })),
+            total: carts.length
+        };
 
-        const cart = await CART.find({ userId: userId }).populate('user').populate('products');
         res.status(200).json({
             status: "Success",
-            message: 'carts get successfully',
-            carts: carts,
-            total: carts.length,
+            message: 'Carts fetched successfully',
+            data: response
         });
-
     } catch (error) {
         res.status(500).json({
             status: "Fail",
-            msg: "carts not found",
-            data: error
+            message: "Carts not found",
+            error: error
         });
-
     }
 }
-
 
 //create a cart
 
@@ -111,7 +151,7 @@ exports.createCart = async (req, res, next) => {
         res.status(500).json({
             status: "Fail",
             msg: "cart not created",
-            data: error
+            data: error.message
         });
     }
 }
@@ -147,7 +187,6 @@ exports.deleteCart = async (req, res, next) => {
         res.status(200).json({
             status: "Success",
             message: 'cart deleted successfully',
-            cart: cart,
         });
 
     } catch (error) {
