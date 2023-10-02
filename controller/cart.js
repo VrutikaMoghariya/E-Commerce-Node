@@ -2,130 +2,57 @@ const CART = require('../model/cart');
 
 exports.getAllCarts = async (req, res, next) => {
 
-    if (req.query._id) {    // get single cart
+    // get all carts
+    try {
+        const carts = await CART.find().populate('product');
+        res.status(200).json({
+            status: "Success",
+            message: 'Carts get Successfully',
+            carts: carts,
+            total: carts.length,
+        });
 
-        try {
+    } catch (error) {
 
-            const _id = req.query._id;
-            const cart = await CART.findById(_id).populate('user').populate('products');
-            res.status(200).json({
-                status: "Success",
-                message: 'cart get successfully',
-                cart: cart,
-            });
-
-        } catch (error) {
-
-            res.status(500).json({
-                status: "Fail",
-                msg: "Product not found",
-                data: error
-            });
-        }
-
-    } else {
-
-        // get all carts
-        try {
-
-            const carts = await CART.find().populate('product').populate('user');
-            res.status(200).json({
-
-                status: "Success",
-                message: 'carts get successfully',
-                carts: carts,
-                total: carts.length,
-            });
-
-        } catch (error) {
-
-            res.status(500).json({
-                status: "Fail",
-                msg: "carts not found",
-                data: error
-            });
-        }
+        res.status(400).json({
+            status: "Fail",
+            msg: "Carts not Found",
+            data: error
+        });
     }
 }
 
 
 exports.getUserCarts = async (req, res, next) => {
     try {
+
         const userId = req.userId;
+        console.log(userId);
+        const carts = await CART.find({ user: userId }).populate('product');
 
-        const carts = await CART.aggregate([
-            {
-                $match: {
-                    user: mongoose.Types.ObjectId(userId)
-                }
-            },
-            {
-                $lookup: {
-                    from: "users",
-                    localField: "user",
-                    foreignField: "_id",
-                    as: "user"
-                }
-            },
-            {
-                $unwind: "$products"
-            },
-            {
-                $lookup: {
-                    from: "products",
-                    localField: "products.product",
-                    foreignField: "_id",
-                    as: "products.product"
-                }
-            },
-            {
-                $addFields: {
-                    "products.qty": "$products.qty"
-                }
-            },
-            {
-                $group: {
-                    _id: "$_id",
-                    user: { $first: "$user" },
-                    products: { $push: "$products" },
-                    total: { $first: "$total" },
-                    discountedTotal: { $first: "$discountedTotal" },
-                    totalProducts: { $first: "$totalProducts" },
-                    totalQuantity: { $first: "$totalQuantity" },
-                }
-            }
-        ]);
+        let total = 0;
+        let discountedTotal = 0;
+        let totalProducts = 0 ;
+        let totalQty = 0;
 
-        const response = {
-            carts: carts.map((cart) => ({
-                id: cart._id,
-                products: cart.products.map((product) => ({
-                    id: product.product[0]._id,
-                    title: product.product[0].title,
-                    price: product.product[0].price,
-                    quantity: product.qty,
-                    total: product.product[0].price * product.qty,
-                    discountPercentage: product.product[0].discountPercentage,
-                    discountedPrice: product.product[0].discountedPrice
-                })),
-                total: cart.total,
-                discountedTotal: cart.discountedTotal,
-                userId: cart.user[0]._id, // Assuming there's only one user per cart
-                totalProducts: cart.totalProducts,
-                totalQuantity: cart.totalQuantity
-            })),
-            total: carts.length
-        };
+        carts.map((item) => {
+
+            total = total + (item.product.price * item.qty);
+            discountedTotal = discountedTotal + (item.product.price * item.qty * item.product.discountPercentage / 100);
+            totalProducts++;
+            totalQty = totalQty + item.qty;
+
+        });
 
         res.status(200).json({
             status: "Success",
-            message: 'Carts fetched successfully',
-            data: response
+            message: 'Carts get Successfully',
+            data: carts
         });
     } catch (error) {
-        res.status(500).json({
+        res.status(400).json({
             status: "Fail",
-            message: "Carts not found",
+            message: "Carts not Found",
             error: error
         });
     }
@@ -140,17 +67,17 @@ exports.createCart = async (req, res, next) => {
         req.body.user = req.userId;
 
         const cart = await CART.create(req.body);
-        res.status(200).json({
+        res.status(201).json({
             status: "Success",
-            message: 'cart created successfully',
+            message: 'Cart created Successfully',
             cart: cart,
         });
 
     } catch (error) {
 
-        res.status(500).json({
+        res.status(400).json({
             status: "Fail",
-            msg: "cart not created",
+            msg: "Cart not Created",
             data: error.message
         });
     }
@@ -164,15 +91,15 @@ exports.updateCart = async (req, res, next) => {
         const cart = await CART.findByIdAndUpdate(req.query._id, req.body);
         res.status(200).json({
             status: "Success",
-            message: 'cart updated successfully',
+            message: 'Cart updated Successfully',
             cart: cart,
         });
 
     } catch (error) {
 
-        res.status(500).json({
+        res.status(400).json({
             status: "Fail",
-            msg: "cart not updated",
+            msg: "Cart not Updated",
             data: error
         });
     }
@@ -186,14 +113,14 @@ exports.deleteCart = async (req, res, next) => {
         const cart = await CART.findByIdAndDelete(req.query._id);
         res.status(200).json({
             status: "Success",
-            message: 'cart deleted successfully',
+            message: 'Cart deleted Successfully',
         });
 
     } catch (error) {
 
-        res.status(500).json({
+        res.status(400).json({
             status: "Fail",
-            msg: "cart not deleted",
+            msg: "Cart not Deleted",
             data: error
         });
     }

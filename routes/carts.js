@@ -6,7 +6,7 @@ const cartController = require('../controller/cart');
 
 router.get('/' , cartController.getAllCarts);
 
-router.get('/user-carts', auth , cartController.getUserCart);
+router.get('/user-carts', auth , cartController.getUserCarts);
 
 router.post('/add' , auth ,  cartController.createCart);
 

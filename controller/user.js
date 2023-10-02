@@ -1,6 +1,6 @@
 const USER = require('../model/user');
 const bcrypt = require('bcrypt');
-var jwt = require('jsonwebtoken');
+const jwt = require('jsonwebtoken');
 
 
 
@@ -28,9 +28,10 @@ exports.loginUser = async function (req, res, next) {
                     msg: "Password does not Match"
                 });
             }
-        }else{
+        } else {
             res.status(400).json({
-                msg: "Required Valid Feilds"});
+                msg: "Required Valid Feilds"
+            });
         }
 
     } catch (error) {
@@ -50,7 +51,7 @@ exports.addUser = async (req, res, next) => {
         req.body.profile = req.file.filename;
         req.body.password = await bcrypt.hash(req.body.password, 10);
         const addUser = await USER.create(req.body);
-        const token = jwt.sign({ userId: addUser._id }, "RANDOM-TOKEN");     // create JWT token
+        const token = await jwt.sign({ userId: addUser._id }, "RANDOM-TOKEN");     // create JWT token
 
         res.status(201).json({                                            //return success response
             status: "Success",
@@ -61,7 +62,7 @@ exports.addUser = async (req, res, next) => {
     } catch (error) {
         res.status(400).json({
             status: "Fail",
-            msg: "User not Added",
+            msg: "User not Added Successfully",
             data: error
         });
     }
@@ -69,9 +70,7 @@ exports.addUser = async (req, res, next) => {
 
 exports.getAllUser = async (req, res, next) => {
     try {
-
         const user = await USER.find();
-
         res.status(200).json({
             status: "Success",
             msg: "User find Successfully",
