@@ -1,7 +1,6 @@
 const CART = require('../model/cart');
 
 exports.getAllCarts = async (req, res, next) => {
-
     // get all carts
     try {
         const carts = await CART.find().populate('product');
@@ -28,11 +27,12 @@ exports.getUserCarts = async (req, res, next) => {
 
         const userId = req.userId;
         console.log(userId);
-        const carts = await CART.find({ user: userId }).populate('product');
+
+        let carts = await CART.find({ user: userId }).populate('product');
 
         let total = 0;
         let discountedTotal = 0;
-        let totalProducts = 0 ;
+        let totalProducts = 0;
         let totalQty = 0;
 
         carts.map((item) => {
@@ -43,6 +43,34 @@ exports.getUserCarts = async (req, res, next) => {
             totalQty = totalQty + item.qty;
 
         });
+
+        carts = await CART.aggregate([
+            {
+                $match: {
+                    user: userId,
+                }
+            },
+            {
+                $lookup: {
+                    from: "products",
+                    localField: "product",
+                    foreignField: "_id",
+                    as: "product",
+                }
+            },
+            {
+                $addFields: {
+                    total: {
+                        $sum : product.price
+                    },
+                    discountedTotal: discountedTotal,
+                    totalProducts: totalProducts,
+                    totalQty: {
+                        $sum : qty
+                    }
+                }
+            }
+        ]);
 
         res.status(200).json({
             status: "Success",
@@ -65,7 +93,7 @@ exports.createCart = async (req, res, next) => {
     try {
 
         req.body.user = req.userId;
-
+        
         const cart = await CART.create(req.body);
         res.status(201).json({
             status: "Success",
@@ -88,10 +116,12 @@ exports.createCart = async (req, res, next) => {
 exports.updateCart = async (req, res, next) => {
 
     try {
-        const cart = await CART.findByIdAndUpdate(req.query._id, req.body);
+        
+        const cart = await CART.updateOne({ 'product._id': req.query.productId }, { $set: { qty : req.body.qty} });
+        console.log(cart);
         res.status(200).json({
             status: "Success",
-            message: 'Cart updated Successfully',
+            message: 'Cart item updated Successfully',
             cart: cart,
         });
 
@@ -99,7 +129,7 @@ exports.updateCart = async (req, res, next) => {
 
         res.status(400).json({
             status: "Fail",
-            msg: "Cart not Updated",
+            msg: "Cart item not Updated",
             data: error
         });
     }
