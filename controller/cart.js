@@ -1,4 +1,5 @@
 const CART = require('../model/cart');
+const PRODUCT = require('../model/product');
 
 exports.getAllCarts = async (req, res, next) => {
     // get all carts
@@ -61,12 +62,12 @@ exports.getUserCarts = async (req, res, next) => {
             {
                 $addFields: {
                     total: {
-                        $sum : product.price
+                        $sum: product.price
                     },
                     discountedTotal: discountedTotal,
                     totalProducts: totalProducts,
                     totalQty: {
-                        $sum : qty
+                        $sum: qty
                     }
                 }
             }
@@ -86,27 +87,58 @@ exports.getUserCarts = async (req, res, next) => {
     }
 }
 
+
 //create a cart
 
 exports.createCart = async (req, res, next) => {
 
     try {
 
-        req.body.user = req.userId;
-        
-        const cart = await CART.create(req.body);
-        res.status(201).json({
+        let { product, qty, total, discountedPrice } = req.body;
+
+        userId = req.userId;
+        let cart = await CART.findOne({ user: userId });
+        product = await PRODUCT.findOne({ _id: req.body.product });
+        total = product.price;
+        discountedPrice = total * product.discountPercentage / 100;
+
+
+        if (!cart) {
+
+            cart = await CART.create({
+                user: userId,
+                products: [{ product, qty, total, discountedPrice }],
+            });
+
+            console.log("cart : " + cart);
+
+
+        } else {
+
+            let existingProduct = cart.products.find((p) => p.product.equals(req.body.product));
+            if (existingProduct) {
+
+                existingProduct.qty += 1;
+                existingProduct.total += total;
+                existingProduct.discountedPrice += discountedPrice;
+
+            } else {
+                cart.products.push({ product, qty, total, discountedPrice });
+            }
+
+            await cart.save();
+        }
+
+        res.status(200).json({
             status: "Success",
-            message: 'Cart created Successfully',
-            cart: cart,
+            message: 'Product Add to cart Successfully',
         });
 
     } catch (error) {
-
-        res.status(400).json({
+        console.error(error);
+        res.status(500).json({
             status: "Fail",
-            msg: "Cart not Created",
-            data: error.message
+            message: 'Product not added to Cart',
         });
     }
 }
@@ -116,8 +148,8 @@ exports.createCart = async (req, res, next) => {
 exports.updateCart = async (req, res, next) => {
 
     try {
-        
-        const cart = await CART.updateOne({ 'product._id': req.query.productId }, { $set: { qty : req.body.qty} });
+
+        const cart = await CART.updateOne({ 'product._id': req.query.productId }, { $set: { qty: req.body.qty } });
         console.log(cart);
         res.status(200).json({
             status: "Success",
