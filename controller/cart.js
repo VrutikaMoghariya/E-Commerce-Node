@@ -1,107 +1,78 @@
 const CART = require('../model/cart');
 const PRODUCT = require('../model/product');
 
-exports.getAllCarts = async (req, res, next) => {
-    // get all carts
+exports.getUserCart = async (req, res, next) => {
     try {
-        const carts = await CART.find().populate('product');
-        res.status(200).json({
-            status: "Success",
-            message: 'Carts get Successfully',
-            carts: carts,
-            total: carts.length,
-        });
-
-    } catch (error) {
-
-        res.status(400).json({
-            status: "Fail",
-            msg: "Carts not Found",
-            data: error
-        });
-    }
-}
-
-
-exports.getUserCarts = async (req, res, next) => {
-    try {
-
         const userId = req.userId;
-        console.log(userId);
-
-        let carts = await CART.find({ user: userId }).populate('product');
-
-        let total = 0;
-        let discountedTotal = 0;
-        let totalProducts = 0;
-        let totalQty = 0;
-
-        carts.map((item) => {
-
-            total = total + (item.product.price * item.qty);
-            discountedTotal = discountedTotal + (item.product.price * item.qty * item.product.discountPercentage / 100);
-            totalProducts++;
-            totalQty = totalQty + item.qty;
-
-        });
-
-        carts = await CART.aggregate([
-            {
-                $match: {
-                    user: userId,
-                }
-            },
+        const carts = await CART.aggregate([
+            { $match: { user: userId } },
+            { $unwind: '$products' },
             {
                 $lookup: {
-                    from: "products",
-                    localField: "product",
-                    foreignField: "_id",
-                    as: "product",
+                    from: 'products', // this should be the actual name of your products collection
+                    localField: 'products.product',
+                    foreignField: '_id',
+                    as: 'products.productInfo'
+                }
+            },
+            { $unwind: '$products.productInfo' },
+            {
+                $group: {
+                    _id: '$_id',
+                    user: { $first: '$user' },
+                    products: {
+                        $push: {
+                            product: '$products.productInfo',
+                            qty: '$products.qty',
+                            total: '$products.total',
+                            discountedPrice: '$products.discountedPrice'
+                        }
+                    }
                 }
             },
             {
                 $addFields: {
-                    total: {
-                        $sum: product.price
+                    totalBill: {
+                        $sum: '$products.total'
                     },
-                    discountedTotal: discountedTotal,
-                    totalProducts: totalProducts,
                     totalQty: {
-                        $sum: qty
-                    }
+                        $sum: '$products.qty'
+                    },
+                    totalDiscountedPrice: {
+                        $sum: '$products.discountedPrice'
+                    },
+                    totalProducts: {
+                        $size: '$products',
+                    },
                 }
             }
         ]);
 
         res.status(200).json({
             status: "Success",
-            message: 'Carts get Successfully',
-            data: carts
+            msg: 'Carts get Successfully',
+            carts: carts
         });
     } catch (error) {
         res.status(400).json({
             status: "Fail",
-            message: "Carts not Found",
+            msg: "Carts not Found",
             error: error
         });
     }
 }
 
-
 //create a cart
 
-exports.createCart = async (req, res, next) => {
-
+exports.addToCart = async (req, res, next) => {
     try {
-
         let { product, qty, total, discountedPrice } = req.body;
-
         userId = req.userId;
         let cart = await CART.findOne({ user: userId });
         product = await PRODUCT.findOne({ _id: req.body.product });
         total = product.price;
-        discountedPrice = total * product.discountPercentage / 100;
-
+        discountedPrice = Math.floor(total * product.discountPercentage / 100);
+        product = req.body.product;
 
         if (!cart) {
 
@@ -110,80 +81,127 @@ exports.createCart = async (req, res, next) => {
                 products: [{ product, qty, total, discountedPrice }],
             });
 
-            console.log("cart : " + cart);
-
-
         } else {
-
             let existingProduct = cart.products.find((p) => p.product.equals(req.body.product));
             if (existingProduct) {
-
                 existingProduct.qty += 1;
                 existingProduct.total += total;
                 existingProduct.discountedPrice += discountedPrice;
-
+                await cart.save();
             } else {
-                cart.products.push({ product, qty, total, discountedPrice });
+                cart = await CART.updateOne(
+                    { _id: cart._id },
+                    {
+                        $push: {
+                            products: { product, qty, total, discountedPrice },
+                        },
+                    }
+                );
             }
-
-            await cart.save();
         }
-
         res.status(200).json({
             status: "Success",
-            message: 'Product Add to cart Successfully',
+            msg: 'Product Add to cart Successfully',
         });
 
     } catch (error) {
-        console.error(error);
+
         res.status(500).json({
             status: "Fail",
-            message: 'Product not added to Cart',
+            msg: 'Product not added to Cart',
+            error: error
         });
     }
 }
 
-//update a cart
+// update qty pf product
 
-exports.updateCart = async (req, res, next) => {
-
+exports.updateProductQty = async (req, res, next) => {
     try {
 
-        const cart = await CART.updateOne({ 'product._id': req.query.productId }, { $set: { qty: req.body.qty } });
-        console.log(cart);
-        res.status(200).json({
-            status: "Success",
-            message: 'Cart item updated Successfully',
-            cart: cart,
+        const userId = req.userId;
+        const productId = req.query.productId;
+        const newQty = req.body.qty;
+
+        // Find the user's cart
+        let cart = await CART.findOne({ user: userId });
+
+        // Find the product data
+        const productData = await PRODUCT.findById(productId);
+
+        // Check if the cart and product exist
+        if (!cart || !productData) {
+            return res.status(404).json({
+                status: 'Fail',
+                msg: 'Cart or product not found',
+            });
+        }
+
+        // Find the product in the cart's products array
+        cart.products.map((p) => {
+            if (p.product._id.toString() === productId) {
+                p.qty = newQty;
+                p.total = newQty * productData.price;
+                p.discountedPrice = Math.floor(
+                    p.total * (productData.discountPercentage / 100)
+                );
+            }
         });
 
-    } catch (error) {
+     await CART.findByIdAndUpdate(cart._id, cart);
 
+        res.status(200).json({
+            status: 'Success',
+            msg: 'Product qty updated successfully',
+        });
+    } catch (error) {
         res.status(400).json({
-            status: "Fail",
-            msg: "Cart item not Updated",
-            data: error
+            status: 'Fail',
+            msg: 'Product qty not updated',
+            error: error.message,
         });
     }
 }
 
 //delete a cart
 
-exports.deleteCart = async (req, res, next) => {
+exports.removeProduct = async (req, res, next) => {
 
     try {
-        const cart = await CART.findByIdAndDelete(req.query._id);
-        res.status(200).json({
-            status: "Success",
-            message: 'Cart deleted Successfully',
-        });
 
+        const userId = req.userId;
+        const productId = req.query.productId;
+        const cart = await CART.findOne({ user: userId });
+
+        if (!cart) {
+            res.status(404).json({ message: 'Your Cart is Empty' });
+        }
+
+        cart.products = cart.products.filter((p) => !p.product._id.equals(productId));
+
+        if (cart.products.length == 0) {
+
+            await CART.findByIdAndDelete({ _id: cart._id });
+            res.status(200).json({
+                status: "Success",
+                msg: 'Cart deleted',
+            });
+
+        } else {
+
+            await cart.save();
+            res.status(200).json({
+                status: "Success",
+                msg: 'Product removed from cart successfully',
+            });
+        }
+        
     } catch (error) {
 
         res.status(400).json({
             status: "Fail",
-            msg: "Cart not Deleted",
-            data: error
+            msg: "Product not removed from cart successfully",
+            error: error
         });
     }
 }

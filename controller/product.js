@@ -13,7 +13,7 @@ exports.allProducts = async (req, res, next) => {
             const product = await PRODUCT.findById(_id).populate('category');
             res.status(200).json({
                 status: "Success",
-                message: 'Product get successfully',
+                msg: 'Product get successfully',
                 product: product,
             })
 
@@ -22,7 +22,7 @@ exports.allProducts = async (req, res, next) => {
             res.status(400).json({
                 status: "Fail",
                 msg: "Product not found",
-                data: error
+                error: error
             });
         }
 
@@ -36,7 +36,7 @@ exports.allProducts = async (req, res, next) => {
 
             res.status(200).json({
                 status: "Success",
-                message: 'Products get successfully',
+                msg: 'Products get successfully',
                 products: products,
                 total: products.length,
             })
@@ -44,7 +44,7 @@ exports.allProducts = async (req, res, next) => {
             res.status(400).json({
                 status: "Fail",
                 msg: "Product not found",
-                data: error
+                error: error
             });
         }
     }
@@ -71,7 +71,7 @@ exports.allProducts = async (req, res, next) => {
 
             res.status(200).json({
                 status: "Success",
-                message: 'Products by category get successfully',
+                msg: 'Products by category get successfully',
                 products: products,
                 total: products.length,
                 category: category,
@@ -81,7 +81,7 @@ exports.allProducts = async (req, res, next) => {
             res.status(400).json({
                 status: "Fail",
                 msg: "Product not found",
-                data: error
+                error: error
             });
         }
     }
@@ -91,7 +91,7 @@ exports.allProducts = async (req, res, next) => {
             const products = await PRODUCT.find().populate('category');
             res.status(200).json({
                 status: "Success",
-                message: 'Products get successfully',
+                msg: 'Products get successfully',
                 products: products,
                 total: products.length,
             })
@@ -99,7 +99,7 @@ exports.allProducts = async (req, res, next) => {
             res.status(400).json({
                 status: "Fail",
                 msg: "Product not found",
-                data: error
+                error: error
             });
         }
     }
@@ -115,9 +115,10 @@ exports.searchProduct = async (req, res, next) => {
 
         // Check if the search query is provided
         if (!search) {
+
             return res.status(400).json({
                 status: "Fail",
-                message: "Search query is missing",
+                msg: "Search query is missing"
             });
         }
 
@@ -146,7 +147,7 @@ exports.searchProduct = async (req, res, next) => {
 
         res.status(200).json({
             status: "Success",
-            message: 'Products get successfully',
+            msg: 'Products get successfully',
             products: products,
             total: products.length,
         });
@@ -155,7 +156,7 @@ exports.searchProduct = async (req, res, next) => {
         res.status(400).json({
             status: "Fail",
             msg: "Product not found",
-            data: error
+            error: error
         });
     }
 }
@@ -175,7 +176,7 @@ exports.addProduct = async (req, res, next) => {
         const product = await PRODUCT.create(req.body);
         res.status(200).json({
             status: "Success",
-            message: 'Product added successfully',
+            msg: 'Product added successfully',
             product: product,
         });
 
@@ -183,7 +184,7 @@ exports.addProduct = async (req, res, next) => {
         res.status(400).json({
             status: "Fail",
             msg: "Product not added",
-            data: error
+            error: error
         });
     }
 }
@@ -208,14 +209,14 @@ exports.updateProduct = async (req, res, next) => {
 
         res.status(200).json({
             status: "Success",
-            message: 'Product updated successfully',
+            msg: 'Product updated successfully',
         });
 
     } catch (error) {
         res.status(400).json({
             status: "Fail",
             msg: "Product not updated",
-            data: error
+            error: error
         });
     }
 }
@@ -228,14 +229,14 @@ exports.deleteProduct = async (req, res, next) => {
         const product = await PRODUCT.findByIdAndDelete(req.query._id);
         res.status(200).json({
             status: "Success",
-            message: 'Product deleted successfully',
+            msg: 'Product deleted successfully',
             product: product,
         });
     } catch (error) {
         res.status(400).json({
             status: "Fail",
             msg: "Product not deleted",
-            data: error
+            error: error
         });
     }
 }

@@ -38,7 +38,7 @@ exports.loginUser = async function (req, res, next) {
         res.status(400).json({
             status: "Fail",
             msg: "User not Found",
-            data: error
+            error: error
         });
     }
 }
@@ -63,7 +63,7 @@ exports.addUser = async (req, res, next) => {
         res.status(400).json({
             status: "Fail",
             msg: "User not Added Successfully",
-            data: error
+            error: error
         });
     }
 }
@@ -80,7 +80,7 @@ exports.getAllUser = async (req, res, next) => {
         res.status(400).json({
             status: "Fail",
             msg: "Users not founded",
-            data: error
+            error: error
         });
     }
 }

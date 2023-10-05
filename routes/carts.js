@@ -4,15 +4,13 @@ var auth = require('../middleware/auth');
 
 const cartController = require('../controller/cart');
 
-router.get('/' , cartController.getAllCarts);
+router.get('/user-cart', auth, cartController.getUserCart);
 
-router.get('/user-carts', auth , cartController.getUserCarts);
+router.post('/addToCart', auth, cartController.addToCart);
 
-router.post('/add' , auth ,  cartController.createCart);
+router.post('/updateQty' , auth , cartController.updateProductQty)
 
-router.post('/update' , auth , cartController.updateCart);
-
-router.delete('/delete' ,  auth  , cartController.deleteCart);
+router.delete('/removeProduct', auth, cartController.removeProduct);
 
 
 module.exports = router;

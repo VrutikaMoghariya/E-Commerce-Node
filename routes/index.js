@@ -7,7 +7,6 @@ module.exports = router;
 
 
 // payment method
-// login with gmail
 // pagination 
 
 
